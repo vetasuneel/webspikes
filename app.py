@@ -43,10 +43,12 @@ def save_lead(name, phone):
         return True
     return False
 
-def create_prompt():
-    return """
+def create_prompt(user_name=""):
+    greeting = f"Hi there, {user_name}!" if user_name else "Hi there!"
+    
+    return f"""
     Jessica:
-    "Webspikes: Your Gateway to Thriving Online Businesses"
+    {greeting} "Webspikes: Your Gateway to Thriving Online Businesses"
 
     Ready to own a fully automated Shopify or Amazon Affiliate website? Look no further! Webspikes offers a wide variety of turnkey businesses designed for passive income and ease of use. Whether you want to dive into dropshipping, affiliate marketing, or build a thriving e-commerce empire, we’ve got the perfect ready-made website to get you started.
 
@@ -142,14 +144,15 @@ def create_prompt():
     Choose your niche, customize your store, and start earning today. Visit us at Webspikes or check out our Deal of the Day for exclusive discounts on our best-selling sites.
 
     Additional Notes:
-    Keep responses concise and conversational, adjusting based on the user’s needs and aslo you can add the emoji with response.
+    Keep responses concise and conversational, adjusting based on the user’s needs and you can also add emojis with the response.
     Provide links only when the user specifically asks about services (AI White Label, pricing, etc.).
     Avoid offering long explanations unless explicitly requested.
     Current conversation:
-    {history}
-    Human: {input}
+    {{history}}
+    Human: {{input}}
     Jessica:
     """
+
 
 @app.route('/')
 def chat_ui():
@@ -158,9 +161,10 @@ def chat_ui():
 @app.route('/chat', methods=['POST'])
 def chat():
     user_input = request.json.get('message')
+    user_name = request.json.get('name', '')  # Get the user's name from the request
     print(user_input)
 
-    PROMPT_TEMPLATE = create_prompt()
+    PROMPT_TEMPLATE = create_prompt(user_name)  # Pass the name to the prompt
     PROMPT = PromptTemplate(input_variables=["history", "input"], template=PROMPT_TEMPLATE)
 
     conversation = ConversationChain(
@@ -173,6 +177,7 @@ def chat():
     response = conversation.predict(input=user_input)
     print(response)
     return jsonify({'response': response})
+
 
 @app.route('/save_lead', methods=['POST'])
 def save_lead_route():
