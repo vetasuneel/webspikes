@@ -31,10 +31,11 @@ def is_lead_exist(name, phone):
     return False
 
 # Function to save lead to the external API
-def save_lead(name, phone):
+def save_lead(name, phone, email):
     new_lead = {
         'name': name,
-        'phone_number': phone
+        'phone_number': phone,
+        'email': email  # Add email to the payload
     }
     
     response = requests.post(LEADS_API_URL, json=new_lead)
@@ -44,11 +45,11 @@ def save_lead(name, phone):
     return False
 
 def create_prompt(user_name=""):
-    greeting = f"Hi there, {user_name}!" if user_name else "Hi there!"
-    
     return f"""
+    System message: Always address the user by their name, {user_name}, in every response.
+    
     Jessica:
-    {greeting} "Webspikes: Your Gateway to Thriving Online Businesses"
+    Hi, {user_name}! 👋 How can I assist you today? Let me guide you through Webspikes' turnkey solutions.
 
     Ready to own a fully automated Shopify or Amazon Affiliate website? Look no further! Webspikes offers a wide variety of turnkey businesses designed for passive income and ease of use. Whether you want to dive into dropshipping, affiliate marketing, or build a thriving e-commerce empire, we’ve got the perfect ready-made website to get you started.
 
@@ -156,26 +157,47 @@ def create_prompt(user_name=""):
 
 @app.route('/')
 def chat_ui():
-    return "Ideapad Chatbot API"
+    return "webspikes Chatbot API"
+
+from flask import session
+
+# Initialize memory for storing conversation details
+memory = ConversationBufferMemory(ai_prefix="Jessica", memory_key="history", input_key="input")
+
 
 @app.route('/chat', methods=['POST'])
 def chat():
     user_input = request.json.get('message')
     user_name = request.json.get('name', '')  # Get the user's name from the request
-    print(user_input)
 
-    PROMPT_TEMPLATE = create_prompt(user_name)  # Pass the name to the prompt
+    # Store the user's name in the session
+    if user_name:
+        session['user_name'] = user_name
+
+    # Retrieve the name from the session if it was stored previously
+    stored_name = session.get('user_name', None)
+
+    # Pass the stored name (if exists) to the prompt
+    PROMPT_TEMPLATE = create_prompt(stored_name or user_name)  # Use the name from session
+    print(f"Final Prompt Template: {PROMPT_TEMPLATE}")  # Debugging: check if name is in the prompt
+
+    # Create a PromptTemplate instance and pass it to the conversation chain
     PROMPT = PromptTemplate(input_variables=["history", "input"], template=PROMPT_TEMPLATE)
 
+    # Initialize the conversation chain with the LLM and the memory
     conversation = ConversationChain(
         llm=gemini_llm,
-        verbose=False,
         prompt=PROMPT,
-        memory=ConversationBufferMemory(ai_prefix="AI Assistant")
+        memory=memory,
+        verbose=True  # Turn on verbose mode to get more detailed information about the conversation
     )
 
+    # Get the response from the conversation chain
     response = conversation.predict(input=user_input)
-    print(response)
+    
+    # Debugging: Print the response to check if the name is being used
+    print(f"AI Response: {response}")
+
     return jsonify({'response': response})
 
 
@@ -184,19 +206,19 @@ def save_lead_route():
     data = request.json
     name = data.get('name')
     phone_number = data.get('phone_number')
+    email = data.get('email')  # Get email
 
-    if not name or not phone_number:
-        return jsonify({'error': 'Name and phone number are required'}), 400
+    if not name or not phone_number or not email:
+        return jsonify({'error': 'Name, phone number, and email are required'}), 400
 
     # Check if the lead already exists in the external API
     if is_lead_exist(name, phone_number):
         return jsonify({'message': 'You are already in my lead.'})
 
     # Save the lead to the external API if it doesn't exist
-    if save_lead(name, phone_number):
+    if save_lead(name, phone_number, email):  # Pass email as well
         return jsonify({'message': 'Your information has been saved. Thank you!'})
     else:
         return jsonify({'error': 'Failed to save lead. Please try again later.'}), 500
-
 if __name__ == "__main__":
     app.run(debug=True)
