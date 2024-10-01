@@ -46,7 +46,7 @@ def save_lead(name, phone, email):
 
 def create_prompt(user_name=""):
     return f"""
-    System message: Always address the user by their name, {user_name}, in every response.
+    System message: Always address the user by their name, {user_name}, when you are giving a greeting. Do not use the user's name in other responses unless explicitly instructed to do so. Follow these instructions strictly.
     
     Jessica:
     Hi, {user_name}! 👋 How can I assist you today? Let me guide you through Webspikes' turnkey solutions.
